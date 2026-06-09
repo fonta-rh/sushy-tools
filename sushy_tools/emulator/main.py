@@ -35,6 +35,7 @@ from sushy_tools.emulator.resources import drives as drvdriver
 from sushy_tools.emulator.resources import indicators as inddriver
 from sushy_tools.emulator.resources import managers as mgrdriver
 from sushy_tools.emulator.resources import storage as stgdriver
+from sushy_tools.emulator.resources.systems import ec2driver
 from sushy_tools.emulator.resources.systems import fakedriver
 from sushy_tools.emulator.resources.systems import ironicdriver
 from sushy_tools.emulator.resources.systems import libvirtdriver
@@ -168,6 +169,14 @@ class Application(flask.Flask):
 
             result = ironicdriver.IronicDriver.initialize(
                 self.config, self.logger, ironic_cloud)()
+
+        elif self.config.get('SUSHY_EMULATOR_AWS_REGION'):
+            if not ec2driver.is_loaded:
+                self.logger.error('EC2 driver not loaded (pip install boto3)')
+                sys.exit(1)
+
+            result = ec2driver.Ec2Driver.initialize(
+                self.config, self.logger)()
 
         else:
             if not libvirtdriver.is_loaded:
@@ -1159,6 +1168,11 @@ def parse_args():
                                help='Ironic cloud name. Can also be set via '
                                     'via config variable '
                                     'SUSHY_EMULATOR_IRONIC_CLOUD.')
+    backend_group.add_argument('--aws-region',
+                               type=str,
+                               help='AWS region for EC2 driver. Can also be '
+                                    'set via config variable '
+                                    'SUSHY_EMULATOR_AWS_REGION.')
 
     return parser.parse_args()
 
@@ -1182,6 +1196,9 @@ def main():
 
     if args.ironic_cloud:
         app.config['SUSHY_EMULATOR_IRONIC_CLOUD'] = args.ironic_cloud
+
+    if args.aws_region:
+        app.config['SUSHY_EMULATOR_AWS_REGION'] = args.aws_region
 
     if args.fake:
         app.config['SUSHY_EMULATOR_FAKE_DRIVER'] = True
